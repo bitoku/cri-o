@@ -22,6 +22,8 @@ func (r *runtimeOCI) PortForwardContainer(ctx context.Context, c *Container, net
 	// Adapted reference implementation:
 	// https://github.com/containerd/cri/blob/8c366d/pkg/server/sandbox_portforward_unix.go#L65-L120
 	if err := ns.WithNetNSPath(netNsPath, func(_ ns.NetNS) error {
+		var x []byte
+		defer stream.Read(x) // consume unread data to prevent from memory leak
 		defer stream.Close()
 
 		// localhost can resolve to both IPv4 and IPv6 addresses in dual-stack systems
