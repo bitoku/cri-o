@@ -222,7 +222,7 @@ func (ss *StatsServer) updatePodSandboxMetrics(sb *sandbox.Sandbox) *SandboxMetr
 			continue
 		}
 
-		cMetrics := ss.GenerateSandboxContainerMetrics(sb, c, sm)
+		cMetrics := ss.containerMetricsFromContainerStats(sb, c, nil, nil)
 		containerMetrics = append(containerMetrics, cMetrics)
 	}
 
@@ -230,27 +230,6 @@ func (ss *StatsServer) updatePodSandboxMetrics(sb *sandbox.Sandbox) *SandboxMetr
 	ss.sboxMetrics[sb.ID()] = sm
 
 	return sm
-}
-
-// GenerateSandboxContainerMetrics generates a list of metrics for the specified sandbox
-// containers by collecting metrics from the cgroup based on the included pod metrics,
-// except for network metrics, which are collected at the pod level.
-func (ss *StatsServer) GenerateSandboxContainerMetrics(sb *sandbox.Sandbox, c *oci.Container, sm *SandboxMetrics) *types.ContainerMetrics {
-	ctrStats, err := ss.Runtime().ContainerStats(ss.ctx, c, sb.CgroupParent())
-	if err != nil || ctrStats == nil {
-		log.Errorf(ss.ctx, "Error getting sandbox stats %s: %v", sb.ID(), err)
-
-		return nil
-	}
-
-	diskStats, err := ss.Runtime().DiskStats(ss.ctx, c, sb.CgroupParent())
-	if err != nil {
-		log.Errorf(ss.ctx, "Error getting disk stats %s: %v", c.ID(), err)
-
-		return nil
-	}
-
-	return ss.containerMetricsFromContainerStats(sb, c, ctrStats, diskStats)
 }
 
 func (ss *StatsServer) containerMetricsFromContainerStats(sb *sandbox.Sandbox, c *oci.Container, cgroupStats *stats.CgroupStats, diskStats *stats.DiskStats) *types.ContainerMetrics {
@@ -264,25 +243,55 @@ func (ss *StatsServer) containerMetricsFromContainerStats(sb *sandbox.Sandbox, c
 		},
 	}}, "")
 
+	var cgroupStatsInitialized, diskStatsInitialized bool
+	initCgroupStats := func() {
+		if cgroupStats != nil || cgroupStatsInitialized {
+			return
+		}
+		var err error
+		cgroupStats, err = ss.Runtime().ContainerStats(ss.ctx, c, sb.CgroupParent())
+		if err != nil || cgroupStats == nil {
+			log.Errorf(ss.ctx, "Error getting sandbox stats %s: %v", sb.ID(), err)
+		}
+		cgroupStatsInitialized = true
+	}
+
+	initDiskStats := func() {
+		if diskStats != nil || diskStatsInitialized {
+			return
+		}
+		var err error
+		diskStats, err = ss.Runtime().DiskStats(ss.ctx, c, sb.CgroupParent())
+		if err != nil {
+			log.Errorf(ss.ctx, "Error getting disk stats %s: %v", sb.ID(), err)
+		}
+		diskStatsInitialized = true
+	}
+
 	for _, m := range ss.Config().IncludedPodMetrics {
 		switch m {
 		case config.CPUMetrics:
+			initCgroupStats()
 			if cpuMetrics := generateContainerCPUMetrics(c, &cgroupStats.CpuStats); cpuMetrics != nil {
 				metrics = append(metrics, cpuMetrics...)
 			}
 		case config.HugetlbMetrics:
+			initCgroupStats()
 			if hugetlbMetrics := generateContainerHugetlbMetrics(c, cgroupStats.HugetlbStats); hugetlbMetrics != nil {
 				metrics = append(metrics, hugetlbMetrics...)
 			}
 		case config.DiskMetrics:
+			initDiskStats()
 			if diskMetrics := generateContainerDiskMetrics(c, &diskStats.Filesystem); diskMetrics != nil {
 				metrics = append(metrics, diskMetrics...)
 			}
 		case config.DiskIOMetrics:
+			initCgroupStats()
 			if diskIOMetrics := generateContainerDiskIOMetrics(c, &cgroupStats.BlkioStats); diskIOMetrics != nil {
 				metrics = append(metrics, diskIOMetrics...)
 			}
 		case config.MemoryMetrics:
+			initCgroupStats()
 			if memoryMetrics := generateContainerMemoryMetrics(c, &cgroupStats.MemoryStats); memoryMetrics != nil {
 				metrics = append(metrics, memoryMetrics...)
 			}
@@ -306,6 +315,7 @@ func (ss *StatsServer) containerMetricsFromContainerStats(sb *sandbox.Sandbox, c
 		case config.NetworkMetrics:
 			continue // Network metrics are collected at the pod level only.
 		case config.ProcessMetrics:
+			initCgroupStats()
 			if processMetrics := generateContainerProcessMetrics(c, &cgroupStats.PidsStats, &cgroupStats.ProcessStats); processMetrics != nil {
 				metrics = append(metrics, processMetrics...)
 			}
@@ -314,6 +324,7 @@ func (ss *StatsServer) containerMetricsFromContainerStats(sb *sandbox.Sandbox, c
 				metrics = append(metrics, specMetrics...)
 			}
 		case config.PressureMetrics:
+			initCgroupStats()
 			if pressureMetrics := generateContainerPressureMetrics(c, &cgroupStats.CpuStats, &cgroupStats.MemoryStats, &cgroupStats.BlkioStats); pressureMetrics != nil {
 				metrics = append(metrics, pressureMetrics...)
 			}
