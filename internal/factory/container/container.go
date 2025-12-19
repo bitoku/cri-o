@@ -510,7 +510,12 @@ func (c *container) UserRequestedImage() (string, error) {
 		return "", errors.New("CreateContainerRequest.ContainerConfig.Image is nil")
 	}
 
-	image := imageSpec.GetImage()
+	image := imageSpec.GetUserSpecifiedImage()
+	if image != "" {
+		return image, nil
+	}
+
+	image = imageSpec.GetImage()
 	if image == "" {
 		return "", errors.New("CreateContainerRequest.ContainerConfig.Image.Image is empty")
 	}
