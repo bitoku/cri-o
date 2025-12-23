@@ -132,7 +132,7 @@ var _ = t.Describe("Container", func() {
 			sb, err := sbox.GetSandbox()
 			Expect(err).ToNot(HaveOccurred())
 
-			image, err := sut.UserRequestedImage()
+			image, err := sut.UserSpecifiedImage()
 			Expect(err).ToNot(HaveOccurred())
 
 			logpath, err := sut.LogPath(sb.LogDir())
@@ -156,7 +156,7 @@ var _ = t.Describe("Container", func() {
 			err = sut.SpecAddAnnotations(context.Background(), sb, volumes, mountPoint, configStopSignal, &imageResult, false, "foo", "")
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(sut.Spec().Config.Annotations[annotations.UserRequestedImage]).To(Equal(image))
+			Expect(sut.Spec().Config.Annotations[annotations.UserSpecifiedImage]).To(Equal(image))
 			Expect(sut.Spec().Config.Annotations[annotations.SomeNameOfTheImage]).To(Equal(imageResult.SomeNameOfThisImage.StringForOutOfProcessConsumptionOnly()))
 			Expect(sut.Spec().Config.Annotations[annotations.ImageRef]).To(Equal(imageResult.ID.IDStringForOutOfProcessConsumptionOnly()))
 			Expect(sut.Spec().Config.Annotations[annotations.Name]).To(Equal(sut.Name()))
@@ -214,7 +214,7 @@ var _ = t.Describe("Container", func() {
 			Expect(sut.DisableFips()).To(BeFalse())
 		})
 	})
-	t.Describe("UserRequestedImage", func() {
+	t.Describe("UserSpecifiedImage", func() {
 		It("should fail when spec not set", func() {
 			// Given
 
@@ -222,7 +222,7 @@ var _ = t.Describe("Container", func() {
 			Expect(sut.SetConfig(config, sboxConfig)).To(Succeed())
 
 			// Then
-			img, err := sut.UserRequestedImage()
+			img, err := sut.UserSpecifiedImage()
 			Expect(err).To(HaveOccurred())
 			Expect(img).To(BeEmpty())
 		})
@@ -234,7 +234,7 @@ var _ = t.Describe("Container", func() {
 			Expect(sut.SetConfig(config, sboxConfig)).To(Succeed())
 
 			// Then
-			img, err := sut.UserRequestedImage()
+			img, err := sut.UserSpecifiedImage()
 			Expect(err).To(HaveOccurred())
 			Expect(img).To(BeEmpty())
 		})
@@ -249,7 +249,7 @@ var _ = t.Describe("Container", func() {
 			Expect(sut.SetConfig(config, sboxConfig)).To(Succeed())
 
 			// Then
-			img, err := sut.UserRequestedImage()
+			img, err := sut.UserSpecifiedImage()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(img).To(Equal(testImage))
 		})
@@ -264,7 +264,7 @@ var _ = t.Describe("Container", func() {
 			Expect(sut.SetConfig(config, sboxConfig)).To(Succeed())
 
 			// Then
-			img, err := sut.UserRequestedImage()
+			img, err := sut.UserSpecifiedImage()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(img).To(Equal(testImage))
 		})
@@ -281,7 +281,7 @@ var _ = t.Describe("Container", func() {
 			Expect(sut.SetConfig(config, sboxConfig)).To(Succeed())
 
 			// Then
-			img, err := sut.UserRequestedImage()
+			img, err := sut.UserSpecifiedImage()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(img).To(Equal(testImage))
 		})

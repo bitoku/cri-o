@@ -31,10 +31,10 @@ const (
 	// SeccompProfilePath is the node seccomp profile path.
 	SeccompProfilePath = "io.kubernetes.cri-o.SeccompProfilePath"
 
-	// UserRequestedImage is an annotation containing the image specified in the container spec
+	// UserSpecifiedImage is an annotation containing the image specified in the container spec
 	// and used to look up the image when creating the container.
 	// It might evaluate to a different image (or to a different kind of reference!) at any future time.
-	UserRequestedImage = "io.kubernetes.cri-o.Image"
+	UserSpecifiedImage = "io.kubernetes.cri-o.Image"
 
 	// SomeNameOfTheImage is an annotation containing _some_ name of the image used to create the container.
 	// May be "" if the image was referenced by ID and has no names.

@@ -1054,7 +1054,7 @@ func (s *Server) setupSandboxAnnotations(sbox libsandbox.Builder, g *generate.Ge
 	g.AddAnnotation(annotations.Namespace, namespace)
 	g.AddAnnotation(annotations.ContainerType, annotations.ContainerTypeSandbox)
 	g.AddAnnotation(annotations.SandboxID, sboxID)
-	g.AddAnnotation(annotations.UserRequestedImage, pauseImage.StringForOutOfProcessConsumptionOnly())
+	g.AddAnnotation(annotations.UserSpecifiedImage, pauseImage.StringForOutOfProcessConsumptionOnly())
 	g.AddAnnotation(annotations.SomeNameOfTheImage, pauseImage.StringForOutOfProcessConsumptionOnly())
 	g.AddAnnotation(annotations.ContainerName, containerName)
 	g.AddAnnotation(annotations.ContainerID, sboxID)
@@ -1290,7 +1290,7 @@ func (s *Server) setupInfraContainer(ctx context.Context, sb *libsandbox.Sandbox
 	// In the case of kernel separated containers, we need the infra container to create the VM for the pod
 	if sb.NeedsInfra(s.config.DropInfraCtr) || podIsKernelSeparated {
 		log.Debugf(ctx, "Keeping infra container for pod %s", sboxID)
-		// pauseImage, as the userRequestedImage parameter, only shows up in CRI values we return.
+		// pauseImage, as the userSpecifiedImage parameter, only shows up in CRI values we return.
 		container, err = oci.NewContainer(sboxID, containerName, podContainer.RunDir, logPath, labels, g.Config.Annotations, kubeAnnotations, pauseImage.StringForOutOfProcessConsumptionOnly(), nil, nil, "", nil, sboxID, false, false, false, runtimeHandler, podContainer.Dir, created, podContainer.Config.Config.StopSignal)
 		if err != nil {
 			return nil, "", err

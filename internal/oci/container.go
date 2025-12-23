@@ -148,7 +148,7 @@ type ContainerMonitorProcess struct {
 }
 
 // NewContainer creates a container object.
-// userRequestedImage is the users' input originally used to find imageID; it might evaluate to a different image (or to a different kind of reference!)
+// userSpecifiedImage is the users' input originally used to find imageID; it might evaluate to a different image (or to a different kind of reference!)
 // at any future time.
 // someNameOftheImage, if set, is _some_ name of the image imageID; it may have NO RELATIONSHIP to the users’ requested image name.
 // imageID is nil for infra containers.
@@ -156,7 +156,7 @@ type ContainerMonitorProcess struct {
 // may have NO RELATIONSHIP to the users’ requested image name (and, which
 // should be fixed eventually, may be a repo@digest combination which has never
 // existed on a registry).
-func NewContainer(id, name, bundlePath, logPath string, labels, crioAnnotations, annotations map[string]string, userRequestedImage string, someNameOfTheImage *references.RegistryImageReference, imageID *storage.StorageImageID, someRepoDigest string, md *types.ContainerMetadata, sandbox string, terminal, stdin, stdinOnce bool, runtimeHandler, dir string, created time.Time, stopSignal string) (*Container, error) {
+func NewContainer(id, name, bundlePath, logPath string, labels, crioAnnotations, annotations map[string]string, userSpecifiedImage string, someNameOfTheImage *references.RegistryImageReference, imageID *storage.StorageImageID, someRepoDigest string, md *types.ContainerMetadata, sandbox string, terminal, stdin, stdinOnce bool, runtimeHandler, dir string, created time.Time, stopSignal string) (*Container, error) {
 	state := &ContainerState{}
 	state.Created = created
 
@@ -179,7 +179,7 @@ func NewContainer(id, name, bundlePath, logPath string, labels, crioAnnotations,
 			Metadata:     md,
 			Annotations:  annotations,
 			Image: &types.ImageSpec{
-				Image: userRequestedImage,
+				Image: userSpecifiedImage,
 			},
 			ImageRef: externalImageRef,
 			ImageId:  imageIDString,
@@ -418,9 +418,9 @@ func (c *Container) CrioAnnotations() map[string]string {
 	return c.crioAnnotations
 }
 
-// UserRequestedImage returns the users' input originally used to find imageID; it might evaluate to a different image
+// UserSpecifiedImage returns the users' input originally used to find imageID; it might evaluate to a different image
 // (or to a different kind of reference!) at any future time.
-func (c *Container) UserRequestedImage() string {
+func (c *Container) UserSpecifiedImage() string {
 	if userSpecifiedImage := c.criContainer.GetImage().GetUserSpecifiedImage(); userSpecifiedImage != "" {
 		return userSpecifiedImage
 	}

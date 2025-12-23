@@ -77,7 +77,7 @@ type RuntimeServer interface {
 	// CreateContainer creates a container with the specified ID.
 	// Pointer arguments can be nil.
 	// All other arguments are required.
-	CreateContainer(systemContext *types.SystemContext, podName, podID, userRequestedImage string, imageID StorageImageID, containerName, containerID, metadataName string, attempt uint32, idMappingsOptions *storage.IDMappingOptions, labelOptions []string, privileged bool) (ContainerInfo, error)
+	CreateContainer(systemContext *types.SystemContext, podName, podID, userSpecifiedImage string, imageID StorageImageID, containerName, containerID, metadataName string, attempt uint32, idMappingsOptions *storage.IDMappingOptions, labelOptions []string, privileged bool) (ContainerInfo, error)
 	// DeleteContainer deletes a container, unmounting it first if need be.
 	DeleteContainer(ctx context.Context, idOrName string) error
 
@@ -145,7 +145,7 @@ type runtimeContainerMetadataTemplate struct {
 	podName string // Applicable to both PodSandboxes and Containers, mandatory
 	podID   string // Applicable to both PodSandboxes and Containers, mandatory
 	// The users' input originally used to find imageID; it might evaluate to a different image (or to a different kind of reference!) at any future time.
-	userRequestedImage string // Applicable to both PodSandboxes and Containers
+	userSpecifiedImage string // Applicable to both PodSandboxes and Containers
 	// The ID of the image that was used to instantiate the container.
 	imageID StorageImageID // Applicable to both PodSandboxes and Containers. Should refer to an image which existed just now (but that can change at any time).
 	// The container's name, which for an infrastructure container is usually PodName + "-infra".
@@ -171,7 +171,7 @@ func (r *runtimeService) createContainerOrPodSandbox(systemContext *types.System
 	metadata := RuntimeContainerMetadata{
 		PodName:       template.podName,
 		PodID:         template.podID,
-		ImageName:     template.userRequestedImage,
+		ImageName:     template.userSpecifiedImage,
 		ImageID:       template.imageID.IDStringForOutOfProcessConsumptionOnly(),
 		ContainerName: template.containerName,
 		MetadataName:  template.metadataName,
@@ -365,7 +365,7 @@ func (r *runtimeService) CreatePodSandbox(systemContext *types.SystemContext, po
 	return r.createContainerOrPodSandbox(systemContext, podID, &runtimeContainerMetadataTemplate{
 		podName:            podName,
 		podID:              podID,
-		userRequestedImage: pauseImage.StringForOutOfProcessConsumptionOnly(), // userRequestedImage is only used to write to container metadata on disk
+		userSpecifiedImage: pauseImage.StringForOutOfProcessConsumptionOnly(), // userSpecifiedImage is only used to write to container metadata on disk
 		imageID:            imageID,
 		containerName:      containerName,
 		metadataName:       metadataName,
@@ -376,11 +376,11 @@ func (r *runtimeService) CreatePodSandbox(systemContext *types.SystemContext, po
 	}, idMappingsOptions, labelOptions)
 }
 
-func (r *runtimeService) CreateContainer(systemContext *types.SystemContext, podName, podID, userRequestedImage string, imageID StorageImageID, containerName, containerID, metadataName string, attempt uint32, idMappingsOptions *storage.IDMappingOptions, labelOptions []string, privileged bool) (ContainerInfo, error) {
+func (r *runtimeService) CreateContainer(systemContext *types.SystemContext, podName, podID, userSpecifiedImage string, imageID StorageImageID, containerName, containerID, metadataName string, attempt uint32, idMappingsOptions *storage.IDMappingOptions, labelOptions []string, privileged bool) (ContainerInfo, error) {
 	return r.createContainerOrPodSandbox(systemContext, containerID, &runtimeContainerMetadataTemplate{
 		podName:            podName,
 		podID:              podID,
-		userRequestedImage: userRequestedImage,
+		userSpecifiedImage: userSpecifiedImage,
 		imageID:            imageID,
 		containerName:      containerName,
 		metadataName:       metadataName,

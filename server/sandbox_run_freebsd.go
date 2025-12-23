@@ -11,8 +11,6 @@ import (
 
 	cnitypes "github.com/containernetworking/cni/pkg/types"
 	current "github.com/containernetworking/cni/pkg/types/100"
-	"go.podman.io/storage"
-	"go.podman.io/storage/pkg/idtools"
 	"github.com/cri-o/cri-o/internal/annotations"
 	"github.com/cri-o/cri-o/internal/config/node"
 	"github.com/cri-o/cri-o/internal/config/nsmgr"
@@ -28,6 +26,8 @@ import (
 	json "github.com/goccy/go-json"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/storage"
+	"go.podman.io/storage/pkg/idtools"
 	types "k8s.io/cri-api/pkg/apis/runtime/v1"
 	kubeletTypes "k8s.io/kubelet/pkg/types"
 )
@@ -277,7 +277,7 @@ func (s *Server) runPodSandbox(ctx context.Context, req *types.RunPodSandboxRequ
 	g.AddAnnotation(annotations.Namespace, namespace)
 	g.AddAnnotation(annotations.ContainerType, annotations.ContainerTypeSandbox)
 	g.AddAnnotation(annotations.SandboxID, sboxId)
-	g.AddAnnotation(annotations.UserRequestedImage, s.config.PauseImage)
+	g.AddAnnotation(annotations.UserSpecifiedImage, s.config.PauseImage)
 	g.AddAnnotation(annotations.SomeNameOfTheImage, s.config.PauseImage)
 	g.AddAnnotation(annotations.ContainerName, containerName)
 	g.AddAnnotation(annotations.ContainerID, sboxId)

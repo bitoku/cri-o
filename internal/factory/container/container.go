@@ -75,9 +75,9 @@ type Container interface {
 	// DisableFips returns whether the container should disable fips mode
 	DisableFips() bool
 
-	// UserRequestedImage returns the image specified in the container spec and used to look up the image when creating the container, or an error.
+	// UserSpecifiedImage returns the image specified in the container spec and used to look up the image when creating the container, or an error.
 	// The value might evaluate to a different image (or to a different kind of reference!) at any future time.
-	UserRequestedImage() (string, error)
+	UserSpecifiedImage() (string, error)
 
 	// ReadOnly returns whether the rootfs should be readonly
 	// it takes a bool as to whether crio was configured to
@@ -186,7 +186,7 @@ func (c *container) SpecAddAnnotations(ctx context.Context, sb SandboxIFace, con
 	created := time.Now()
 	labels := c.Config().GetLabels()
 
-	userRequestedImage, err := c.UserRequestedImage()
+	userSpecifiedImage, err := c.UserSpecifiedImage()
 	if err != nil {
 		return err
 	}
@@ -231,7 +231,7 @@ func (c *container) SpecAddAnnotations(ctx context.Context, sb SandboxIFace, con
 		}
 	}
 
-	c.spec.AddAnnotation(annotations.UserRequestedImage, userRequestedImage)
+	c.spec.AddAnnotation(annotations.UserSpecifiedImage, userSpecifiedImage)
 
 	someNameOfThisImage := ""
 	if imageResult.SomeNameOfThisImage != nil {
@@ -502,9 +502,9 @@ func (c *container) DisableFips() bool {
 	return false
 }
 
-// UserRequestedImage returns the image specified in the container spec and used to look up the image when creating the container, or an error.
+// UserSpecifiedImage returns the image specified in the container spec and used to look up the image when creating the container, or an error.
 // The value might evaluate to a different image (or to a different kind of reference!) at any future time.
-func (c *container) UserRequestedImage() (string, error) {
+func (c *container) UserSpecifiedImage() (string, error) {
 	imageSpec := c.config.GetImage()
 	if imageSpec == nil {
 		return "", errors.New("CreateContainerRequest.ContainerConfig.Image is nil")

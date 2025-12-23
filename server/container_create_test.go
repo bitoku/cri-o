@@ -250,7 +250,7 @@ var _ = t.Describe("FindRepoDigestForImage", func() {
 		Expect(result).To(Equal(""))
 	})
 
-	It("should return exact match when userRequestedImage matches a repo digest", func() {
+	It("should return exact match when userSpecifiedImage matches a repo digest", func() {
 		exactMatch := "docker.io/library/nginx@" + digest1
 		repoDigests := []reference.Canonical{
 			mustCanonical("docker.io/library/alpine@" + digest2),
@@ -289,7 +289,7 @@ var _ = t.Describe("FindRepoDigestForImage", func() {
 		Expect(result).To(Equal("docker.io/library/alpine@" + digest1))
 	})
 
-	It("should return first digest when userRequestedImage is invalid", func() {
+	It("should return first digest when userSpecifiedImage is invalid", func() {
 		repoDigests := []reference.Canonical{
 			mustCanonical("docker.io/library/alpine@" + digest1),
 			mustCanonical("docker.io/library/nginx@" + digest2),

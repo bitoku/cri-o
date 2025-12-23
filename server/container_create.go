@@ -102,7 +102,7 @@ func (m criOrderedMounts) parts(i int) int {
 
 // containerImageResult holds the image resolution and verification results.
 type containerImageResult struct {
-	userRequestedImage string
+	userSpecifiedImage string
 	imgResult          *storage.ImageResult
 	someNameOfTheImage *references.RegistryImageReference
 	imageID            storage.StorageImageID
@@ -660,7 +660,7 @@ func (s *Server) createSandboxContainer(ctx context.Context, ctr container.Conta
 		return nil, err
 	}
 
-	containerInfo, containerIDMappings, err := s.createStorageContainer(ctx, ctr, sb, imgInfo.userRequestedImage, imgInfo.imageID, containerName, containerID)
+	containerInfo, containerIDMappings, err := s.createStorageContainer(ctx, ctr, sb, imgInfo.userSpecifiedImage, imgInfo.imageID, containerName, containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -802,7 +802,7 @@ func (s *Server) createSandboxContainer(ctx context.Context, ctr container.Conta
 
 	containerImageConfig := containerInfo.Config
 	if containerImageConfig == nil {
-		err = fmt.Errorf("empty image config for %s", imgInfo.userRequestedImage)
+		err = fmt.Errorf("empty image config for %s", imgInfo.userSpecifiedImage)
 
 		return nil, err
 	}
@@ -890,7 +890,7 @@ func (s *Server) createSandboxContainer(ctx context.Context, ctr container.Conta
 		Attempt: metadata.GetAttempt(),
 	}
 
-	ociContainer, err := oci.NewContainer(containerID, containerName, containerInfo.RunDir, logPath, labels, crioAnnotations, ctr.Config().GetAnnotations(), imgInfo.userRequestedImage, imgInfo.someNameOfTheImage, &imgInfo.imageID, imgInfo.someRepoDigest, criMetadata, sb.ID(), containerConfig.GetTty(), containerConfig.GetStdin(), containerConfig.GetStdinOnce(), sb.RuntimeHandler(), containerInfo.Dir, created, stopSignal)
+	ociContainer, err := oci.NewContainer(containerID, containerName, containerInfo.RunDir, logPath, labels, crioAnnotations, ctr.Config().GetAnnotations(), imgInfo.userSpecifiedImage, imgInfo.someNameOfTheImage, &imgInfo.imageID, imgInfo.someRepoDigest, criMetadata, sb.ID(), containerConfig.GetTty(), containerConfig.GetStdin(), containerConfig.GetStdinOnce(), sb.RuntimeHandler(), containerInfo.Dir, created, stopSignal)
 	if err != nil {
 		return nil, err
 	}
@@ -1235,7 +1235,7 @@ func (s *Server) configureSELinuxLabels(ctr container.Container, sb *sandbox.San
 
 // createStorageContainer creates the storage layer container with the specified image and ID mappings.
 // It configures SELinux labels and user namespace mappings as needed for the container.
-func (s *Server) createStorageContainer(ctx context.Context, ctr container.Container, sb *sandbox.Sandbox, userRequestedImage string, imageID storage.StorageImageID, containerName, containerID string) (*storage.ContainerInfo, *idtools.IDMappings, error) {
+func (s *Server) createStorageContainer(ctx context.Context, ctr container.Container, sb *sandbox.Sandbox, userSpecifiedImage string, imageID storage.StorageImageID, containerName, containerID string) (*storage.ContainerInfo, *idtools.IDMappings, error) {
 	labelOptions, err := ctr.SelinuxLabel(sb.ProcessLabel())
 	if err != nil {
 		return nil, nil, err
@@ -1257,7 +1257,7 @@ func (s *Server) createStorageContainer(ctx context.Context, ctr container.Conta
 
 	containerInfo, err := s.ContainerServer.StorageRuntimeServer().CreateContainer(s.config.SystemContext,
 		sb.Name(), sb.ID(),
-		userRequestedImage, imageID,
+		userSpecifiedImage, imageID,
 		containerName, containerID,
 		metadata.GetName(),
 		metadata.GetAttempt(),
@@ -1275,19 +1275,19 @@ func (s *Server) createStorageContainer(ctx context.Context, ctr container.Conta
 // resolveAndVerifyContainerImage resolves the user-requested image reference to a concrete image,
 // verifies its signature policy, and returns detailed image metadata including image ID, names, and digests.
 func (s *Server) resolveAndVerifyContainerImage(ctx context.Context, ctr container.Container, sb *sandbox.Sandbox) (*containerImageResult, error) {
-	userRequestedImage, err := ctr.UserRequestedImage()
+	userSpecifiedImage, err := ctr.UserSpecifiedImage()
 	if err != nil {
 		return nil, err
 	}
 
 	var imgResult *storage.ImageResult
-	if id := s.ContainerServer.StorageImageServer().HeuristicallyTryResolvingStringAsIDPrefix(userRequestedImage); id != nil {
+	if id := s.ContainerServer.StorageImageServer().HeuristicallyTryResolvingStringAsIDPrefix(userSpecifiedImage); id != nil {
 		imgResult, err = s.ContainerServer.StorageImageServer().ImageStatusByID(s.config.SystemContext, *id)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		potentialMatches, err := s.ContainerServer.StorageImageServer().CandidatesForPotentiallyShortImageName(s.config.SystemContext, userRequestedImage)
+		potentialMatches, err := s.ContainerServer.StorageImageServer().CandidatesForPotentiallyShortImageName(s.config.SystemContext, userSpecifiedImage)
 		if err != nil {
 			return nil, err
 		}
@@ -1306,24 +1306,24 @@ func (s *Server) resolveAndVerifyContainerImage(ctx context.Context, ctr contain
 	}
 
 	if imgResult == nil {
-		return nil, fmt.Errorf("failed to find image %q", userRequestedImage)
+		return nil, fmt.Errorf("failed to find image %q", userSpecifiedImage)
 	}
 
-	if userRequestedImage == "" {
-		return nil, errors.New("internal error: successfully found an image, but userRequestedImage is empty")
+	if userSpecifiedImage == "" {
+		return nil, errors.New("internal error: successfully found an image, but userSpecifiedImage is empty")
 	}
 
 	someNameOfTheImage := imgResult.SomeNameOfThisImage
 	imageID := imgResult.ID
 
-	someRepoDigest := FindRepoDigestForImage(imgResult.RepoDigests, userRequestedImage)
+	someRepoDigest := FindRepoDigestForImage(imgResult.RepoDigests, userSpecifiedImage)
 
 	if err := s.verifyImageSignature(ctx, sb.Metadata().GetNamespace(), ctr.Config().GetImage().GetUserSpecifiedImage(), imgResult); err != nil {
 		return nil, err
 	}
 
 	return &containerImageResult{
-		userRequestedImage: userRequestedImage,
+		userSpecifiedImage: userSpecifiedImage,
 		imgResult:          imgResult,
 		someNameOfTheImage: someNameOfTheImage,
 		imageID:            imageID,
@@ -1333,11 +1333,11 @@ func (s *Server) resolveAndVerifyContainerImage(ctx context.Context, ctr contain
 
 // FindRepoDigestForImage finds an appropriate repo digest to use for imageRef.
 // Priority:
-// 1. If userRequestedImage exactly matches a repo digest, return it
+// 1. If userSpecifiedImage exactly matches a repo digest, return it
 // 2. Otherwise, find a digest with matching repository name
 // 3. If no match is found, returns the first repo digest
 // Returns empty string if repoDigests is empty.
-func FindRepoDigestForImage(repoDigests []reference.Canonical, userRequestedImage string) string {
+func FindRepoDigestForImage(repoDigests []reference.Canonical, userSpecifiedImage string) string {
 	if len(repoDigests) == 0 {
 		return ""
 	}
@@ -1347,13 +1347,13 @@ func FindRepoDigestForImage(repoDigests []reference.Canonical, userRequestedImag
 
 	// First, check for exact match (e.g., user requested a manifest list digest)
 	for _, d := range repoDigests {
-		if d.String() == userRequestedImage {
-			return userRequestedImage
+		if d.String() == userSpecifiedImage {
+			return userSpecifiedImage
 		}
 	}
 
 	// Try to find a digest with matching repository name
-	userRef, err := reference.ParseNormalizedNamed(userRequestedImage)
+	userRef, err := reference.ParseNormalizedNamed(userSpecifiedImage)
 	if err != nil {
 		return result
 	}
