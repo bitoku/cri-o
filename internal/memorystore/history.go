@@ -18,7 +18,8 @@ func (history *History[T]) Len() int {
 func (history *History[T]) Less(i, j int) bool {
 	values := *history
 
-	return values[j].CreatedAt().Before(values[i].CreatedAt())
+	return values[j].CreatedAt().Before(values[i].CreatedAt()) ||
+		(values[j].CreatedAt().Equal(values[i].CreatedAt()) && values[j].ID() < values[i].ID())
 }
 
 // Swap switches values i and j positions in the history.

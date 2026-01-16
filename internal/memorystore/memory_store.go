@@ -9,6 +9,7 @@ import (
 type AnyCreated[T any] interface {
 	// CreatedAt returns the creation time of the value.
 	CreatedAt() time.Time
+	ID() string
 }
 
 // Storer defines an interface that any store must implement.
