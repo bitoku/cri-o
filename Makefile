@@ -441,6 +441,7 @@ mockgen: \
 	mock-cmdrunner \
 	mock-containerstorage \
 	mock-containereventserver \
+	mock-containerliststream \
 	mock-criostorage \
 	mock-lib-config \
 	mock-oci \
@@ -457,6 +458,13 @@ mock-containereventserver: ${MOCKGEN}
 		-package containereventservermock \
 		-destination ${MOCK_PATH}/containereventserver/containereventserver.go \
 		k8s.io/cri-api/pkg/apis/runtime/v1 RuntimeService_GetContainerEventsServer
+
+.PHONY: mock-containerliststream
+mock-containerliststream: ${MOCKGEN}
+	${MOCKGEN} \
+		-package containerliststreamservermock \
+		-destination ${MOCK_PATH}/containerliststream/containerliststream.go \
+		k8s.io/cri-api/pkg/apis/runtime/v1 RuntimeService_ListContainerStreamServer
 
 .PHONY: mock-containerstorage
 mock-containerstorage: ${MOCKGEN}
