@@ -1159,6 +1159,29 @@ func updateContainerStatusFromExitFile(c *Container) error {
 	return nil
 }
 
+// waitForExitFile waits for the container's exit file to appear using
+// exponential backoff. Returns nil if the file appeared, or an error if it did
+// not appear within the timeout (~5s total: 500ms initial, 1.2 factor, 6 steps).
+// The caller is responsible for releasing any locks before calling this function.
+func waitForExitFile(c *Container) error {
+	exitFilePath := c.exitFilePath()
+
+	return kwait.ExponentialBackoff(
+		kwait.Backoff{
+			Duration: 500 * time.Millisecond,
+			Factor:   1.2,
+			Steps:    6,
+		},
+		func() (bool, error) {
+			_, err := os.Stat(exitFilePath)
+			if err != nil {
+				return false, nil
+			}
+
+			return true, nil
+		})
+}
+
 // UpdateContainerStatus refreshes the status of the container.
 func (r *runtimeOCI) UpdateContainerStatus(ctx context.Context, c *Container) error {
 	ctx, span := log.StartSpan(ctx)
@@ -1189,9 +1212,23 @@ func (r *runtimeOCI) UpdateContainerStatus(ctx context.Context, c *Container) er
 			// containers failing.
 			c.state.Status = ContainerStateStopped
 			if err := updateContainerStatusFromExitFile(c); err != nil {
-				log.Errorf(ctx, "Failed to update container status from exit file for %s: %v", c.ID(), err)
-				c.state.Finished = time.Now()
-				c.state.ExitCode = utils.Int32Ptr(255)
+				// The exit file may not exist yet if conmon hasn't written it.
+				// Wait for it to appear before defaulting to exit code 255.
+				// This prevents a race where fast-exiting containers (<10ms)
+				// get a spurious exit code 255.
+				c.opLock.Unlock()
+				waitErr := waitForExitFile(c)
+				c.opLock.Lock()
+
+				if waitErr != nil {
+					log.Errorf(ctx, "Failed to update container status from exit file for %s: %v", c.ID(), err)
+					c.state.Finished = time.Now()
+					c.state.ExitCode = utils.Int32Ptr(255)
+				} else if err := updateContainerStatusFromExitFile(c); err != nil {
+					log.Errorf(ctx, "Failed to read exit file for %s after wait: %v", c.ID(), err)
+					c.state.Finished = time.Now()
+					c.state.ExitCode = utils.Int32Ptr(255)
+				}
 			}
 
 			return nil, true, nil
@@ -1220,26 +1257,11 @@ func (r *runtimeOCI) UpdateContainerStatus(ctx context.Context, c *Container) er
 
 		return nil
 	}
-	// release the lock before waiting
+
 	c.opLock.Unlock()
-	exitFilePath := c.exitFilePath()
-	err = kwait.ExponentialBackoff(
-		kwait.Backoff{
-			Duration: 500 * time.Millisecond,
-			Factor:   1.2,
-			Steps:    6,
-		},
-		func() (bool, error) {
-			_, err := os.Stat(exitFilePath)
-			if err != nil {
-				// wait longer
-				return false, nil
-			}
-
-			return true, nil
-		})
-
+	err = waitForExitFile(c)
 	c.opLock.Lock()
+
 	// run command again
 	state, _, err2 := stateCmd()
 	if err2 != nil {
