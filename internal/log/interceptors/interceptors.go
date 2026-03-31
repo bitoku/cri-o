@@ -13,6 +13,13 @@ import (
 	"github.com/cri-o/cri-o/server/metrics"
 )
 
+// suppressedOperations is the set of CRI operations that are logged at trace
+// level instead of debug to reduce log noise.
+var suppressedOperations = map[string]bool{
+	"ListContainers": true,
+	"ListPodSandbox": true,
+}
+
 type ServerStream struct {
 	grpc.ServerStream
 
@@ -62,7 +69,14 @@ func UnaryInterceptor() grpc.UnaryServerInterceptor {
 		operationStart := time.Now()
 		operation := filepath.Base(info.FullMethod)
 		newCtx, span := opentelemetry.Tracer().Start(AddRequestNameAndID(ctx, info.FullMethod), info.FullMethod)
-		log.Debugf(newCtx, "Request: %T: %+v", req, req)
+
+		// Log read operations at trace level, write operations at debug level.
+		logf := log.Debugf
+		if suppressedOperations[operation] {
+			logf = log.Tracef
+		}
+
+		logf(newCtx, "Request: %T: %+v", req, req)
 
 		resp, err := handler(newCtx, req)
 		// record the operation
@@ -71,10 +85,10 @@ func UnaryInterceptor() grpc.UnaryServerInterceptor {
 		metrics.Instance().MetricOperationsLatencyTotalObserve(operation, operationStart)
 
 		if err != nil {
-			log.Debugf(newCtx, "Response error: %+v", err)
+			logf(newCtx, "Response error: %+v", err)
 			metrics.Instance().MetricOperationsErrorsInc(operation)
 		} else {
-			log.Debugf(newCtx, "Response: %T: %+v", resp, resp)
+			logf(newCtx, "Response: %T: %+v", resp, resp)
 		}
 
 		span.End()
