@@ -1,0 +1,17 @@
+classes:
+  lowprio:
+  - Weight: 50
+  - Devices:
+    - /dev/sd[a-z]
+    ThrottleReadBps: "1M"
+    ThrottleWriteBps: "1M"
+    ThrottleReadIOPS: "50"
+    ThrottleWriteIOPS: "25"
+  highprio:
+  - Weight: 800
+  - Devices:
+    - /dev/sd[a-z]
+    ThrottleReadBps: "5M"
+    ThrottleWriteBps: "2M"
+    ThrottleReadIOPS: "200"
+    ThrottleWriteIOPS: "100"
