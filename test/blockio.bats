@@ -127,19 +127,12 @@ function get_ctr_cgroup_dir() {
 	grep -q "rbps=" "$cgdir/io.max"
 }
 
-@test "blockio undefined class applies no io.max throttle" {
+@test "blockio undefined class fails container creation" {
 	configure_blockio
 	start_crio
 
 	jq '	  .annotations["blockio.resources.beta.kubernetes.io/pod"] = "undefinedclass"' \
 		"$TESTDATA"/sandbox_config.json >"$TESTDIR"/sandbox_blockio.json
 
-	ctr_id=$(crictl run "$TESTDATA"/container_sleep.json "$TESTDIR"/sandbox_blockio.json)
-
-	cgdir=$(get_ctr_cgroup_dir "$ctr_id")
-	[[ -d "$cgdir" ]]
-
-	if [[ -f "$cgdir/io.max" ]]; then
-		run ! grep -q "rbps=" "$cgdir/io.max"
-	fi
+	run ! crictl run "$TESTDATA"/container_sleep.json "$TESTDIR"/sandbox_blockio.json
 }

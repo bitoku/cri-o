@@ -752,7 +752,7 @@ func (s *Server) createSandboxContainer(ctx context.Context, ctr container.Conta
 
 	err = s.specSetBlockioClass(specgen, metadata.GetName(), containerConfig.GetAnnotations(), sb.Annotations())
 	if err != nil {
-		log.Warnf(ctx, "Reconfiguring blockio for container %s failed: %v", containerID, err)
+		return nil, err
 	}
 
 	logPath, err := ctr.LogPath(sb.LogDir())

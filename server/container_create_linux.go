@@ -840,13 +840,16 @@ func (s *Server) specSetBlockioClass(specgen *generate.Generator, containerName 
 				}
 			}
 
-			if linuxBlockIO, err := blockio.OciLinuxBlockIO(blockioClass); err == nil {
-				if specgen.Config.Linux.Resources == nil {
-					specgen.Config.Linux.Resources = &rspec.LinuxResources{}
-				}
-
-				specgen.Config.Linux.Resources.BlockIO = linuxBlockIO
+			linuxBlockIO, err := blockio.OciLinuxBlockIO(blockioClass)
+			if err != nil {
+				return fmt.Errorf("failed to configure blockio class %q: %w", blockioClass, err)
 			}
+
+			if specgen.Config.Linux.Resources == nil {
+				specgen.Config.Linux.Resources = &rspec.LinuxResources{}
+			}
+
+			specgen.Config.Linux.Resources.BlockIO = linuxBlockIO
 		}
 	}
 
