@@ -11,7 +11,7 @@ function setup() {
 		skip "blockio tests require cgroup v2"
 	fi
 }
-bl
+
 function teardown() {
 	cleanup_test
 }
@@ -125,4 +125,21 @@ function get_ctr_cgroup_dir() {
 	[[ -d "$cgdir" ]]
 	[[ -f "$cgdir/io.max" ]]
 	grep -q "rbps=" "$cgdir/io.max"
+}
+
+@test "blockio undefined class applies no io.max throttle" {
+	configure_blockio
+	start_crio
+
+	jq '	  .annotations["blockio.resources.beta.kubernetes.io/pod"] = "undefinedclass"' \
+		"$TESTDATA"/sandbox_config.json >"$TESTDIR"/sandbox_blockio.json
+
+	ctr_id=$(crictl run "$TESTDATA"/container_sleep.json "$TESTDIR"/sandbox_blockio.json)
+
+	cgdir=$(get_ctr_cgroup_dir "$ctr_id")
+	[[ -d "$cgdir" ]]
+
+	if [[ -f "$cgdir/io.max" ]]; then
+		run ! grep -q "rbps=" "$cgdir/io.max"
+	fi
 }
