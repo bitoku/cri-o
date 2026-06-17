@@ -79,7 +79,7 @@ require (
 	k8s.io/apimachinery v0.36.0
 	k8s.io/client-go v0.36.0
 	k8s.io/component-base v0.36.0
-	k8s.io/cri-api v0.36.0
+	k8s.io/cri-api v0.36.2
 	k8s.io/cri-client v0.36.0
 	k8s.io/cri-streaming v0.36.0
 	k8s.io/klog/v2 v2.140.0
